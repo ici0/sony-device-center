@@ -123,7 +123,7 @@ TEST_CASE("ProtocolV2: handles equalizer queries and settings", "[protocol][v2]"
 // Frame bytes below are taken directly from that capture.
 TEST_CASE("ProtocolV2: handles the 10-band equalizer layout (WH-1000XM6)", "[protocol][v2]")
 {
-    FakeTransport fake;
+    ReplyingFakeTransport fake;
     SonyProtocolSession session(&fake);
     session.connect("11:22:33:44:55:66");
 
@@ -132,9 +132,11 @@ TEST_CASE("ProtocolV2: handles the 10-band equalizer layout (WH-1000XM6)", "[pro
     SECTION("getEqualizer queries inquired type 0x04 and decodes 10 raw bands")
     {
         // Capture offset 22375: 57 04 a0 0a 07 07 07 07 06 06 07 08 08 08
-        fake.queueIncoming(FrameCodec::encode(SonyFrame{ .type = DataType::Ack, .sequence = 0 }));
-        fake.queueIncoming(FrameCodec::encode(SonyFrame{ .type = DataType::DataMdr, .sequence = 1,
-            .payload = {0x57, 0x04, 0xa0, 0x0a, 0x07, 0x07, 0x07, 0x07, 0x06, 0x06, 0x07, 0x08, 0x08, 0x08} }));
+        fake.queueReply({
+            SonyFrame{ .type = DataType::Ack, .sequence = 0 },
+            SonyFrame{ .type = DataType::DataMdr, .sequence = 1,
+                .payload = {0x57, 0x04, 0xa0, 0x0a, 0x07, 0x07, 0x07, 0x07, 0x06, 0x06, 0x07, 0x08, 0x08, 0x08} }
+        });
 
         auto eq = v2.getEqualizer();
         REQUIRE(fake.sentCount() >= 1);
@@ -146,7 +148,7 @@ TEST_CASE("ProtocolV2: handles the 10-band equalizer layout (WH-1000XM6)", "[pro
 
     SECTION("setEqualizerPreset uses inquired type 0x04")
     {
-        fake.queueIncoming(FrameCodec::encode(SonyFrame{ .type = DataType::Ack, .sequence = 0 }));
+        fake.queueReply({ SonyFrame{ .type = DataType::Ack, .sequence = 0 } });
         v2.setEqualizerPreset(0x30);
 
         REQUIRE(fake.sentCount() == 1);
@@ -156,7 +158,7 @@ TEST_CASE("ProtocolV2: handles the 10-band equalizer layout (WH-1000XM6)", "[pro
 
     SECTION("setEqualizerCustom sends raw, unbiased band values with no Clear Bass slot")
     {
-        fake.queueIncoming(FrameCodec::encode(SonyFrame{ .type = DataType::Ack, .sequence = 0 }));
+        fake.queueReply({ SonyFrame{ .type = DataType::Ack, .sequence = 0 } });
         // clearBass is meaningless on this layout and must be ignored.
         v2.setEqualizerCustom(5, {7, 7, 7, 7, 6, 6, 3, 7, 3, 8});
 
@@ -167,12 +169,12 @@ TEST_CASE("ProtocolV2: handles the 10-band equalizer layout (WH-1000XM6)", "[pro
 
     SECTION("setEqualizerCustom clamps to the observed 0..12 raw range")
     {
-        fake.queueIncoming(FrameCodec::encode(SonyFrame{ .type = DataType::Ack, .sequence = 0 }));
-        v2.setEqualizerCustom(0, {-5, 0, 6, 12, 99});
+        fake.queueReply({ SonyFrame{ .type = DataType::Ack, .sequence = 0 } });
+        v2.setEqualizerCustom(0, {-5, 0, 6, 12, 99, -1, 1, 5, 11, 13});
 
         REQUIRE(fake.sentCount() == 1);
         auto sent = FrameCodec::decode(fake.lastSentFrame());
-        REQUIRE(sent.payload == std::vector<uint8_t>{0x58, 0x04, 0xa0, 0x05, 0, 0, 6, 12, 12});
+        REQUIRE(sent.payload == std::vector<uint8_t>{0x58, 0x04, 0xa0, 0x0a, 0, 0, 6, 12, 12, 0, 1, 5, 11, 12});
     }
 }
 
