@@ -42,7 +42,8 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
         },
         // WH-1000XM4 (V1 protocol, ANC/Ambient, Single battery, wear sensor, multipoint)
         // Battery, EQ + Clear Bass, firmware and codec readback verified on
-        // hardware (firmware 3.0.1) over the legacy V1 opcodes.
+        // hardware (firmware 3.0.1) over the legacy V1 opcodes. Speak-to-Chat is
+        // Smart Talking Mode (F6 05), not the V2 subtype 0x0c.
         DeviceProfile{
             .model = SonyModel::WH1000XM4,
             .protocol = SonyProtocolVersion::V1,
@@ -56,7 +57,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .clearBass = true,
                 .tenBandEqualizer = false,
                 .dsee = false,
-                .speakToChat = false,
+                .speakToChat = true,
                 .adaptiveVolume = false,
                 .autoPowerOff = false,
                 .firmwareInfo = true,
