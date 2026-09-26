@@ -21,6 +21,14 @@ namespace {
 
 constexpr uint8_t kNcAsmInquired = 0x02;  // NOISE_CANCELLING_AND_AMBIENT_SOUND_MODE
 constexpr uint8_t kEqInquired = 0x01;     // PRESET_EQ
+constexpr uint8_t kSpeakToChatInquired = 0x05;  // SMART_TALKING_MODE (not V2's 0x0c)
+constexpr uint8_t kSpeakToChatParamOnOff = 0x01;
+constexpr uint8_t kSpeakToChatParamConfig = 0x00;  // FC: sensitivity / focus / timeout
+constexpr uint8_t kSpeakToChatSessionActive = 0x02;  // payload[2] while ducked
+constexpr uint8_t kSpeakToChatConfigSet = 0xfc;
+constexpr uint8_t kSpeakToChatSensitivityAuto = 0x00;
+constexpr uint8_t kSpeakToChatVoiceFocusOff = 0x00;
+constexpr uint8_t kSpeakToChatTimeoutStandard = 0x01;  // ~30s; 0x03 is "do not close"
 
 constexpr uint8_t kEffectOff = 0x00;
 constexpr uint8_t kEffectAdjustmentCompletion = 0x11;
@@ -170,6 +178,7 @@ EqualizerState ProtocolV1::getEqualizer() {
     EqualizerState state;
     state.preset = static_cast<int>(resp.payload[2]);
     state.clearBass = static_cast<int>(resp.payload[4]) - 10;
+    state.bands.assign(5, 0);
     for (size_t i = 0; i < 5; ++i) {
         state.bands[i] = static_cast<int>(resp.payload[5 + i]) - 10;
     }
@@ -187,13 +196,16 @@ void ProtocolV1::setEqualizerPreset(int preset) {
     _session.send(SonyFrame{ .type = DataType::DataMdr, .payload = std::move(payload) });
 }
 
-void ProtocolV1::setEqualizerCustom(int clearBass, const std::array<int, 5>& bands) {
-    // SET custom: 58 01 A0 06 <clearBass+10> <b1..b5 +10>
+void ProtocolV1::setEqualizerCustom(int clearBass, const std::vector<int>& bands) {
+    // SET custom: 58 01 A0 <1+bands.size()> <clearBass+10> <b1..bN +10>
+    // (bands.size() is always 5 on this generation, but the count byte is
+    // computed rather than hardcoded so a mismatched caller fails on the
+    // wire instead of silently sending a malformed frame.)
     std::vector<uint8_t> payload = {
         0x58,
         kEqInquired,
         0xa0,
-        0x06,
+        static_cast<uint8_t>(1 + bands.size()),
         clampEqValue(clearBass)
     };
     for (int b : bands) {
@@ -241,11 +253,46 @@ void ProtocolV1::setAutoPowerOff(int /*index*/) {
 }
 
 bool ProtocolV1::getSpeakToChat() {
-    throw SonyException(SonyErrorCode::Unsupported, "Speak-to-Chat is not supported on Protocol V1");
+    // GET f6 05 -> RET f7 05 <kind> <onOff>
+    // kind 0x02 is an active talking session (cans ducked). That is still
+    // "on"; treating it as off is how the UI lies after a reconnect.
+    // Otherwise the enable flag is at [3] and is not inverted.
+    auto resp = _session.sendAndAwaitResponse(
+        SonyFrame{ .type = DataType::DataMdr, .payload = {0xf6, kSpeakToChatInquired} },
+        0xf7,
+        kSpeakToChatInquired,
+        kTimeout
+    );
+    if (resp.payload.size() < 4 || resp.payload[1] != kSpeakToChatInquired)
+        throw SonyException(SonyErrorCode::InvalidResponse, "Incomplete SpeakToChat response");
+    return resp.payload[2] == kSpeakToChatSessionActive || resp.payload[3] != 0;
 }
 
-void ProtocolV1::setSpeakToChat(bool /*enabled*/) {
-    throw SonyException(SonyErrorCode::Unsupported, "Speak-to-Chat is not supported on Protocol V1");
+void ProtocolV1::setSpeakToChat(bool enabled) {
+    // Enable without a timeout writes a session that never closes (Headphones
+    // Connect's "do not close automatically", byte 0x03). Official app always
+    // sends config (FC) with enable (F8). Config first so the timer exists
+    // before the feature arms. Auto sensitivity, no voice-focus, Standard ~30s.
+    if (enabled) {
+        _session.send(SonyFrame{
+            .type = DataType::DataMdr,
+            .payload = {
+                kSpeakToChatConfigSet,
+                kSpeakToChatInquired,
+                kSpeakToChatParamConfig,
+                kSpeakToChatSensitivityAuto,
+                kSpeakToChatVoiceFocusOff,
+                kSpeakToChatTimeoutStandard
+            }
+        });
+    }
+    std::vector<uint8_t> payload = {
+        0xf8,
+        kSpeakToChatInquired,
+        kSpeakToChatParamOnOff,
+        static_cast<uint8_t>(enabled ? 0x01 : 0x00)
+    };
+    _session.send(SonyFrame{ .type = DataType::DataMdr, .payload = std::move(payload) });
 }
 
 bool ProtocolV1::getAdaptiveVolume() {

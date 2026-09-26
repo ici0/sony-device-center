@@ -29,6 +29,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = false,
                 .clearBass = false,
+                .tenBandEqualizer = false,
                 .dsee = false,
                 .speakToChat = false,
                 .adaptiveVolume = false,
@@ -41,7 +42,8 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
         },
         // WH-1000XM4 (V1 protocol, ANC/Ambient, Single battery, wear sensor, multipoint)
         // Battery, EQ + Clear Bass, firmware and codec readback verified on
-        // hardware (firmware 3.0.1) over the legacy V1 opcodes.
+        // hardware (firmware 3.0.1) over the legacy V1 opcodes. Speak-to-Chat is
+        // Smart Talking Mode (F6 05), not the V2 subtype 0x0c.
         DeviceProfile{
             .model = SonyModel::WH1000XM4,
             .protocol = SonyProtocolVersion::V1,
@@ -53,8 +55,9 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = false,
-                .speakToChat = false,
+                .speakToChat = true,
                 .adaptiveVolume = false,
                 .autoPowerOff = false,
                 .firmwareInfo = true,
@@ -75,6 +78,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = true,
                 .adaptiveVolume = true,
@@ -85,7 +89,8 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .multipoint = true
             }
         },
-        // WH-1000XM6 (V2 protocol, Full capability set)
+        // WH-1000XM6 (V2 protocol, 10-band equalizer -- no separate Clear
+        // Bass control; see issue #10 and DeviceCapabilities::tenBandEqualizer)
         DeviceProfile{
             .model = SonyModel::WH1000XM6,
             .protocol = SonyProtocolVersion::V2,
@@ -96,7 +101,8 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .ambientSound = true,
                 .focusOnVoice = true,
                 .equalizer = true,
-                .clearBass = true,
+                .clearBass = false,
+                .tenBandEqualizer = true,
                 .dsee = true,
                 .speakToChat = true,
                 .adaptiveVolume = true,
@@ -119,6 +125,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = true,
                 .adaptiveVolume = false,
@@ -141,6 +148,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = true,
                 .adaptiveVolume = true,
@@ -163,6 +171,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = true,
                 .adaptiveVolume = true,
@@ -186,6 +195,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = false,
                 .adaptiveVolume = false,
@@ -208,6 +218,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = false,
                 .adaptiveVolume = false,
@@ -230,6 +241,7 @@ const std::vector<DeviceProfile>& getStaticProfiles() {
                 .focusOnVoice = true,
                 .equalizer = true,
                 .clearBass = true,
+                .tenBandEqualizer = false,
                 .dsee = true,
                 .speakToChat = true,
                 .adaptiveVolume = false,
