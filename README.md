@@ -35,7 +35,7 @@ Sony locks headphone settings and telemetry behind their mobile-only apps (*Sony
 
 - 🎚️ **Noise Control** — Active Noise Cancelling (ANC), Ambient Sound (levels 1–20), and Off modes.
 - 🗣️ **Focus on Voice** — Toggle speech-priority voice passthrough while suppressing low-frequency noise.
-- 🎛️ **Full Equalizer** — Switch between built-in presets (Bright, Excited, Vocal, Bass Boost, Treble Boost, etc.) or dial in custom 5-band frequencies and Clear Bass (-10 to +10).
+- 🎛️ **Full Equalizer** — Use presets or custom 5-band EQ with Clear Bass on supported models. WH-1000XM6 uses 10 bands (raw levels 0–12), with Off/Custom controls and no separate Clear Bass.
 - ✨ **DSEE Extreme** — Enable or disable Sony's AI-based audio upscaling for compressed audio.
 - 🔋 **Live Battery & Charging State** — Real-time telemetry for over-ear models, plus individual Left, Right, and Case battery levels for True Wireless (TWS) earbuds.
 - 🧩 **Advanced Audio Features** — Speak-to-Chat, Adaptive Volume, and Auto Power-Off timeouts (dynamically enabled based on device capability profiles).
@@ -54,7 +54,7 @@ real hardware.
 | :--- | :---: | :--- | :--- |
 | **WH-1000XM5** | V2 | ✅ Verified | Maintainer's device |
 | **WH-1000XM3** | V1 | ✅ Verified | Maintainer's device |
-| **WH-1000XM6** | V2 | ⚠️ Partially working | Controls work; **equalizer has no effect** ([#10](../../issues/10)), battery intermittent ([#11](../../issues/11)) |
+| **WH-1000XM6** | V2 | ⚠️ Partially working | 10-band EQ verified by the contributor on firmware 3.1.5 ([#44](../../pull/44)); noise-control readback remains unresolved, battery intermittent ([#11](../../issues/11)) |
 | **WF-1000XM6** | V2 | ✅ Verified | Community report |
 | **MDR-1000X** | V1 | ❌ Known broken | Shows as disconnected, no controls work ([#12](../../issues/12)) |
 | **WH-1000XM4** | V1 | ✅ Verified | Community report (firmware 3.0.1, Windows): battery, noise control readback, EQ + Clear Bass, firmware, codec. Speak-to-Chat on/off verified (Standard ~30s timeout; 15s / 1 min / do-not-close UI is a nice-to-have). |
@@ -121,6 +121,12 @@ that is the only way this table improves. `sonyctl -v info` output is ideal.
    ```bash
    ctest --test-dir build --output-on-failure
    ```
+
+### Tests in Docker or Podman
+
+The [Linux test container](tests/container/README.md) builds all targets and runs
+the automated tests, including the Qt app smoke test, without installing build
+dependencies on your host. It also supports ASan/UBSan and incremental builds.
 
 ### macOS
 

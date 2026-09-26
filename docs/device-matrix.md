@@ -20,7 +20,7 @@ This document tracks hardware-level verification and protocol capability support
 | **WH-1000XM3** | V1 | RFCOMM | Verified | Verified | Verified | N/A (V1) | N/A (V1) | Unknown | SBC, AAC, LDAC, aptX | N/A | N/A | 4.5.2 | Community |
 | **WH-1000XM4** | V1 | RFCOMM | Verified | Verified | Verified | Verified | Not implemented (V1) | Verified | AAC verified | Verified (on/off; Standard ~30s) | Not implemented (V1) | 3.0.1 | Community (Windows) |
 | **WH-1000XM5** | V2 | RFCOMM | Verified | Verified | Verified | Verified | Verified | Verified | SBC, AAC, LDAC | Verified | Verified | 2.3.1 | Core Dev |
-| **WH-1000XM6** | V2 | RFCOMM | Expected | Expected | Expected | Expected | Expected | Expected | Expected | Expected | Expected | — | Unreleased |
+| **WH-1000XM6** | V2 | RFCOMM | Intermittent | Readback unresolved | Readback unresolved | Verified (10-band, no Clear Bass) | Expected | Expected | Expected | Expected | Expected | 3.1.5 | Community ([#44](../../pull/44)) |
 | **WF-1000XM4** | V2 | RFCOMM | Expected (Dual+Case) | Expected | Expected | Expected | Expected | Expected | SBC, AAC, LDAC | Expected | Expected | — | Awaiting HW |
 | **WF-1000XM5** | V2 | RFCOMM | Expected (Dual+Case) | Expected | Expected | Expected | Expected | Expected | SBC, AAC, LDAC | Expected | Expected | — | Awaiting HW |
 | **WH-CH720N** | V2 | RFCOMM | Expected | Expected | Expected | Expected | Expected | Expected | SBC, AAC | N/A | Expected | — | Awaiting HW |
@@ -47,6 +47,7 @@ This document tracks hardware-level verification and protocol capability support
 - Subtypes for dual battery channels (left, right) and charging case.
 - Dynamic ANC and 20-step Ambient sound level control (`0x66` / `0x67` / `0x68`).
 - 5-band graphic equalizer with Clear Bass (`0x56` / `0x57` / `0x58`).
+- WH-1000XM6 uses equalizer subtype `0x04`, ten raw band values (0–12), and no Clear Bass. The Qt app and CLI support it; the legacy ImGui client does not.
 - DSEE Extreme toggle (`0xe6` / `0xe7` / `0xe8`).
 - Speak-to-Chat toggle (`0xf6` / `0xf7` / `0xf8`).
 - Auto Power-Off configuration (`0x26` / `0x27` / `0x28`).

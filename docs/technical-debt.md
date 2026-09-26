@@ -14,8 +14,9 @@ no hardware verification or release publication is implied by the automated test
    Standard timeout) is wired; hardware on a WH-1000XM4 confirmed enable and
    that a talking session closes after ~30s. The timeout picker is still a
    nice-to-have (see UI section).
-   XM6 EQ/read timeouts and MDR-1000X connectivity remain unresolved. Decode the
-   reported captures and add literal packet fixtures before changing model claims.
+   WH-1000XM6 10-band EQ is implemented, with packet fixtures and contributor
+   hardware verification on firmware 3.1.5 in #44. XM6 noise-control readback,
+   intermittent battery readings, and MDR-1000X connectivity remain unresolved.
    ACK receipt still cannot establish that an EQ change had an audible effect.
 2. **Sanitizer validation.** The local ASan build cannot link because
    `/usr/lib64/libasan.so.8.0.0` is missing. Re-run ASan/UBSan in CI or after fixing
@@ -80,6 +81,9 @@ no hardware verification or release publication is implied by the automated test
 
 ## UI, packaging, and maintenance
 
+- Add interactive QML tests for switch/slider rollback, rapid actions, device
+  switching, and daemon disappearance/version mismatch. Current Qt tests cover
+  controller/worker behavior, and the smoke test checks QML loading.
 - Speak-to-Chat timeout and sensitivity (nice-to-have). The on/off toggle
   always writes Standard (~30s). Headphones Connect also exposes ~15s, ~1 min,
   and "do not close automatically." Those are already on the wire as `FC 05`
