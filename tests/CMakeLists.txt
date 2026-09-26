@@ -84,4 +84,7 @@ add_executable(sony-core-tests
 )
 target_compile_features(sony-core-tests PRIVATE cxx_std_20)
 target_link_libraries(sony-core-tests PRIVATE Catch2::Catch2WithMain Threads::Threads sony-transport sony-protocol sony-core)
-catch_discover_tests(sony-core-tests PROPERTIES TIMEOUT 10)
+# V1 lifecycle cases intentionally leave some queries unanswered and spend
+# about nine seconds in protocol timeouts. Allow headroom on slower runners
+# (see #62); the protocol's own request deadlines remain unchanged.
+catch_discover_tests(sony-core-tests PROPERTIES TIMEOUT 30)
