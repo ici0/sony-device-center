@@ -168,6 +168,10 @@ jobs:
     name: macOS disk image (DMG)
     needs: check-version
     runs-on: macos-latest
+    env:
+      # Opt in only after configuring the six secrets in packaging/README.md.
+      # Once enabled, missing credentials or failed trust checks stop release.
+      SONY_REQUIRE_NOTARIZATION: ${{ vars.SONY_MACOS_SIGNING_ENABLED == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -193,9 +197,17 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
-      # Unsigned until #7 lands. build-dmg.sh picks up SONY_CODESIGN_IDENTITY
-      # and SONY_NOTARY_PROFILE when they exist, so signing is a secrets
-      # change here, not a workflow rewrite.
+      - name: Prepare Developer ID signing and notarization
+        if: env.SONY_REQUIRE_NOTARIZATION == 'true'
+        env:
+          SONY_MACOS_CERTIFICATE_BASE64: ${{ secrets.SONY_MACOS_CERTIFICATE_BASE64 }}
+          SONY_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.SONY_MACOS_CERTIFICATE_PASSWORD }}
+          SONY_CODESIGN_IDENTITY: ${{ secrets.SONY_CODESIGN_IDENTITY }}
+          SONY_NOTARY_KEY_BASE64: ${{ secrets.SONY_NOTARY_KEY_BASE64 }}
+          SONY_NOTARY_KEY_ID: ${{ secrets.SONY_NOTARY_KEY_ID }}
+          SONY_NOTARY_ISSUER_ID: ${{ secrets.SONY_NOTARY_ISSUER_ID }}
+        run: bash packaging/macos/prepare-signing.sh
+
       - name: Package
         run: cmake --build build --target dmg
 
@@ -212,6 +224,15 @@ jobs:
         with:
           name: macos-packages
           path: dist/
+
+      - name: Remove signing credentials
+        if: always() && env.SONY_REQUIRE_NOTARIZATION == 'true'
+        run: |
+          keychain="$RUNNER_TEMP/sony-macos-signing.keychain-db"
+          if [ -f "$keychain" ]; then
+            security delete-keychain "$keychain"
+          fi
+          rm -f "$RUNNER_TEMP/sony-macos-signing.p12" "$RUNNER_TEMP/sony-macos-notary.p8"
 
   publish:
     name: Publish GitHub release

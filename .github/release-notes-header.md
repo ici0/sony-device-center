@@ -24,9 +24,27 @@ Windows: run the `.msi`, or unpack the `.zip`. The Windows packages bundle the Q
 and MSVC runtimes; the Linux packages depend on system Qt 6.
 
 macOS (13+, Apple silicon and Intel): open the `.dmg` and drag **Sony Device
-Center** to Applications. The build is not yet signed with a Developer ID, so
-the first launch is right-click → **Open**. `sonyd` and `sonyctl` live inside
-the bundle at `Contents/MacOS`.
+Center** to Applications. `sonyd` and `sonyctl` live inside the bundle at
+`Contents/MacOS`.
+
+### macOS: “Apple could not verify” warning
+
+Builds distributed without Developer ID signing and Apple notarization trigger
+Gatekeeper ([#57](https://github.com/marconvcm/sony-device-center/issues/57)).
+If you trust this release, try opening the installed app once, click **Done**,
+then go to **System Settings → Privacy & Security → Open Anyway** and confirm.
+On macOS 15 Sequoia and later, right-click → Open does not override this warning.
+See [Apple's instructions](https://support.apple.com/en-us/102445).
+
+If Open Anyway is unavailable, the workaround reported in #57 is:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Sony Device Center.app"
+```
+
+This bypasses the quarantine check for this app and its bundled files; it does
+not verify their safety or notarize them. Only use it for a release you trust.
+The recursive `-r` is required for quarantined files inside the bundle.
 
 ## Known limitations
 
@@ -38,4 +56,3 @@ the bundle at `Contents/MacOS`.
 - The desktop app reads device state once at startup and does not refresh.
 
 ---
-

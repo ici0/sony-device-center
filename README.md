@@ -161,10 +161,35 @@ packaging/macos/verify-dmg.sh build/*.dmg
 ```
 
 `Sony Device Center.app` inside the image carries its own Qt, plus `sonyd` and
-`sonyctl` in `Contents/MacOS`. The image is unsigned for now, so the first
-launch is right-click → **Open**, or `xattr -d com.apple.quarantine` on the app.
-See [packaging/README.md](packaging/README.md#3-macos-packaging) for the
-signing hooks.
+`sonyctl` in `Contents/MacOS`. See [macOS launch warnings](#macos-launch-warnings)
+for downloaded builds and [packaging/README.md](packaging/README.md#signing-and-notarization)
+for signing setup.
+
+#### macOS launch warnings
+
+The v0.1.5 release is ad-hoc signed and has not been notarized by Apple
+([#57](../../issues/57)). If macOS says Apple could not verify that Sony Device
+Center is free of malware, only continue if you trust the downloaded release.
+
+1. Copy **Sony Device Center.app** from the DMG into **Applications**.
+2. Try opening it once, then dismiss the warning with **Done**.
+3. Open **System Settings → Privacy & Security**, scroll to the blocked app,
+   click **Open Anyway**, and confirm.
+
+Use this [Apple-documented procedure](https://support.apple.com/en-us/102445)
+on macOS 15 Sequoia and later; the older right-click → Open shortcut no longer
+overrides Gatekeeper there.
+
+If that procedure is unavailable, the workaround reported in #57 is:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Sony Device Center.app"
+```
+
+This removes download quarantine from this app and its bundled files, bypassing
+the quarantine check for this copy. It does not sign, notarize, or verify the app.
+The `-r` is needed because files inside the bundle can also be quarantined.
+Then open the app normally. Bluetooth permission is a separate prompt.
 
 ### Windows
 

@@ -8,6 +8,8 @@
 #   packaging/macos/verify-dmg.sh build/sony-device-center-0.1.4-macOS.dmg [arm64 x86_64]
 #
 # Extra arguments are architectures the main binary must contain.
+# SONY_REQUIRE_NOTARIZATION=true also requires a stapled ticket and Gatekeeper
+# acceptance. Ad-hoc CI builds check integrity and runtime dependencies only.
 
 set -euo pipefail
 
@@ -45,6 +47,15 @@ for arch in "$@"; do
 done
 
 codesign --verify --deep --strict "$app" || fail "signature does not verify"
+
+if [ "${SONY_REQUIRE_NOTARIZATION:-false}" = true ]; then
+    codesign --verify --strict "$dmg" || fail "DMG signature does not verify"
+    xcrun stapler validate "$dmg" || fail "DMG has no valid stapled notarization ticket"
+    spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg" || fail "Gatekeeper rejected DMG"
+    spctl --assess --type execute --verbose=2 "$app" || fail "Gatekeeper rejected app"
+else
+    echo "::warning::Notarization not required: signature integrity does not establish Gatekeeper acceptance"
+fi
 
 # The binaries must find their libraries on a Mac that has no Qt installed.
 # Nothing in the bundle may reference the build machine's Qt prefix.
