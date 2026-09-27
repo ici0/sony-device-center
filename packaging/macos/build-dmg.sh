@@ -19,10 +19,23 @@
 #   SONY_NOTARY_PROFILE="notary"
 #       Also submit to Apple and staple the ticket. The profile comes from
 #       `xcrun notarytool store-credentials`.
+#   SONY_REQUIRE_NOTARIZATION="true"
+#       Fail unless both signing and notarization are configured.
+#   SONY_SIGNING_KEYCHAIN="/path/to/temporary.keychain-db"
+#       Optional keychain containing the identity and notary profile (CI).
 #
 # Needs: macdeployqt (from Qt), dmgbuild (pip install dmgbuild).
 
 set -euo pipefail
+
+if [ "${SONY_REQUIRE_NOTARIZATION:-false}" = true ]; then
+    : "${SONY_CODESIGN_IDENTITY:?Notarized builds require a Developer ID identity}"
+    : "${SONY_NOTARY_PROFILE:?Notarized builds require a notary profile}"
+fi
+if [ -n "${SONY_NOTARY_PROFILE:-}" ] && [ -z "${SONY_CODESIGN_IDENTITY:-}" ]; then
+    echo "Notarization requires SONY_CODESIGN_IDENTITY; refusing an ad-hoc submission" >&2
+    exit 1
+fi
 
 build_dir=$(cd "${1:-build}" && pwd)
 here=$(cd "$(dirname "$0")" && pwd)
@@ -73,10 +86,30 @@ for style in Fusion Imagine Material Universal FluentWinUI3 macOS iOS Windows; d
 done
 
 echo "==> Signing"
+keychain_args=()
+if [ -n "${SONY_SIGNING_KEYCHAIN:-}" ]; then
+    keychain_args=(--keychain "$SONY_SIGNING_KEYCHAIN")
+fi
 if [ -n "${SONY_CODESIGN_IDENTITY:-}" ]; then
-    codesign --force --deep --options runtime --timestamp \
+    # Sign from the inside out, including QML plugins under Resources.
+    # --deep signing can miss code and applies app entitlements to helpers.
+    while IFS= read -r -d '' binary; do
+        if file -b "$binary" | grep -q 'Mach-O'; then
+            codesign --force --options runtime --timestamp \
+                ${keychain_args[@]+"${keychain_args[@]}"} --sign "$SONY_CODESIGN_IDENTITY" "$binary"
+        fi
+    done < <(find "$app" -type f -print0)
+    while IFS= read -r -d '' bundle; do
+        codesign --force --options runtime --timestamp \
+            ${keychain_args[@]+"${keychain_args[@]}"} --sign "$SONY_CODESIGN_IDENTITY" "$bundle"
+    done < <(find "$app/Contents" -depth -type d \
+        \( -name '*.framework' -o -name '*.app' -o -name '*.xpc' -o -name '*.bundle' \) -print0)
+    # Qt Quick's JavaScript engine needs JIT permission only in the GUI process.
+    codesign --force --options runtime --timestamp \
+        --entitlements "$here/app.entitlements" ${keychain_args[@]+"${keychain_args[@]}"} \
         --sign "$SONY_CODESIGN_IDENTITY" "$app"
 else
+    echo "::warning::Ad-hoc build: Gatekeeper will require a user override (issue #57)"
     codesign --force --deep --sign - "$app"
 fi
 codesign --verify --deep --strict "$app"
@@ -86,10 +119,27 @@ echo "==> Writing $(basename "$dmg")"
 rm -f "$dmg"
 (cd "$here" && dmgbuild -s dmgbuild.py -D app="$app" "Sony Device Center" "$dmg")
 
+if [ -n "${SONY_CODESIGN_IDENTITY:-}" ]; then
+    codesign --force --timestamp ${keychain_args[@]+"${keychain_args[@]}"} --sign "$SONY_CODESIGN_IDENTITY" "$dmg"
+    codesign --verify --strict "$dmg"
+fi
+
 if [ -n "${SONY_NOTARY_PROFILE:-}" ]; then
     echo "==> Notarizing"
-    xcrun notarytool submit "$dmg" --keychain-profile "$SONY_NOTARY_PROFILE" --wait
+    result="$build_dir/notarization-result.json"
+    xcrun notarytool submit "$dmg" --keychain-profile "$SONY_NOTARY_PROFILE" \
+        ${keychain_args[@]+"${keychain_args[@]}"} --wait --output-format json > "$result"
+    python3 - "$result" <<'PY'
+import json
+import sys
+with open(sys.argv[1]) as stream:
+    result = json.load(stream)
+print(f"Notarization {result.get('id', 'unknown')}: {result.get('status', 'unknown')}")
+if result.get("status") != "Accepted":
+    sys.exit("Notarization was not Accepted; inspect the submission with notarytool log")
+PY
     xcrun stapler staple "$dmg"
+    xcrun stapler validate "$dmg"
 fi
 
 echo "$dmg"

@@ -89,28 +89,67 @@ Files in `packaging/macos/`:
 
 | File | Role |
 | :--- | :--- |
-| `build-dmg.sh` | The pipeline. Everything above in ~80 lines. |
+| `build-dmg.sh` | Deploys Qt, signs the bundle, builds and optionally notarizes the DMG. |
 | `verify-dmg.sh` | Mounts a DMG and asserts Qt, QML modules, daemon, CLI, signature. CI gate. |
+| `prepare-signing.sh` | Imports GitHub release credentials into a temporary keychain. |
+| `app.entitlements` | Allows the Qt Quick GUI's JavaScript JIT under hardened runtime. |
 | `dmgbuild.py` | Window geometry and icon positions for dmgbuild. |
 | `gragen.py` | Paints `dmg-background.png` / `@2x` from the app's palette. Standard library only. |
 | `Info.plist.in`, `AppIcon.icns` | Bundle metadata and icon, used by CMake. |
 
 ### Signing and notarization
-Off by default. The script reads two environment variables and does the rest:
+Off by default. Ad-hoc builds pass signature integrity checks but can still be
+blocked by Gatekeeper. See the [launch workaround](../README.md#macos-launch-warnings)
+for existing downloads. The permanent fix requires an Apple Developer Program
+membership, a **Developer ID Application** certificate with its private key,
+and notarization credentials.
+
+For a local Mac with the certificate already imported into its keychain:
 
 ```bash
 export SONY_CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export SONY_NOTARY_PROFILE="notary"    # from: xcrun notarytool store-credentials notary
+export SONY_REQUIRE_NOTARIZATION=true
 cmake --build build --target dmg
+packaging/macos/verify-dmg.sh build/*.dmg
 ```
 
-With the identity set, the bundle is signed with hardened runtime and a secure
-timestamp; with the profile set, the DMG is submitted to Apple and the ticket
-stapled. To turn this on in CI, add the certificate and credentials as repository
-secrets and export those two variables in the `Package` step of
-`.github/workflows/release.yml`. Without them the bundle is ad-hoc signed, which
-Gatekeeper blocks on first launch (right-click → Open, or
-`xattr -d com.apple.quarantine "/Applications/Sony Device Center.app"`).
+The script signs nested code before the app, using hardened runtime and secure
+timestamps. Only the GUI gets the JIT entitlement; helpers keep the default
+runtime protections. The DMG is also signed. Notarization must return `Accepted`
+before its ticket is stapled and validated. With `SONY_REQUIRE_NOTARIZATION=true`,
+the verifier also requires Gatekeeper acceptance of both the DMG and app.
+It fails instead of silently producing an ad-hoc release if credentials are missing.
+
+#### GitHub Actions setup
+
+The **Release** workflow supports signing on tag builds and manual runs; PR CI
+continues producing ad-hoc builds without signing secrets. Configure these six
+repository secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+| :--- | :--- |
+| `SONY_MACOS_CERTIFICATE_BASE64` | Base64 of the Developer ID Application `.p12` export, including its private key. |
+| `SONY_MACOS_CERTIFICATE_PASSWORD` | Password protecting that `.p12`. |
+| `SONY_CODESIGN_IDENTITY` | Full identity, such as `Developer ID Application: Your Name (TEAMID)`. |
+| `SONY_NOTARY_KEY_BASE64` | Base64 of a team App Store Connect API private key (`.p8`) with notary service access. |
+| `SONY_NOTARY_KEY_ID` | API key ID. |
+| `SONY_NOTARY_ISSUER_ID` | API key issuer ID. |
+
+Then set the repository **variable** `SONY_MACOS_SIGNING_ENABLED` to `true`.
+Only enable it on a repository whose release branches and tags are trusted;
+restrict who can push release tags and dispatch workflows with these secrets.
+The job uses an isolated temporary keychain and removes it and the imported
+credential files even when packaging fails.
+
+Run **Release → Run workflow** on the reviewed branch first. A manual run builds
+packages without publishing a GitHub release. Download its DMG through a browser
+onto a clean Mac, install it, and verify normal launch and Bluetooth permissions.
+Keep [#57](https://github.com/marconvcm/sony-device-center/issues/57) open until a
+notarized release has been published and the reported launch failure is resolved.
+
+References: [Apple notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution),
+[signing nested code](https://developer.apple.com/documentation/xcode/creating-distribution-signed-code-for-the-mac/).
 
 ### Tarball
 `cpack -G TGZ` still works but wraps the undeployed bundle; it is for developers, not users.
