@@ -6,6 +6,8 @@
 
 namespace sony::transport {
 
+enum class ControlBearer { Unknown, Rfcomm, BleGatt };
+
 class ITransport {
 public:
     virtual ~ITransport() = default;
@@ -13,6 +15,7 @@ public:
     virtual void connect(const DeviceAddress& address) = 0;
     virtual void disconnect() noexcept = 0;
     [[nodiscard]] virtual bool isConnected() const noexcept = 0;
+    [[nodiscard]] virtual ControlBearer controlBearer() const noexcept { return ControlBearer::Unknown; }
     virtual size_t send(std::span<const std::byte> data) = 0;
     virtual size_t receive(std::span<std::byte> buffer) = 0;
 };

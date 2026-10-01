@@ -53,6 +53,8 @@ class DeviceCenterController : public QObject {
     Q_PROPERTY(QVariantList pairedDevices READ pairedDevices NOTIFY pairedDevicesChanged)
 
     Q_PROPERTY(bool autostart READ autostart WRITE setAutostart NOTIFY autostartChanged)
+    Q_PROPERTY(bool showBleControlSetting READ showBleControlSetting CONSTANT)
+    Q_PROPERTY(bool bleControlEnabled READ bleControlEnabled WRITE setBleControlEnabled NOTIFY bleControlEnabledChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString currentLanguage READ currentLanguage WRITE setLanguage NOTIFY languageChanged)
     Q_PROPERTY(QVariantList availableLanguages READ availableLanguages CONSTANT)
@@ -94,6 +96,10 @@ public:
     [[nodiscard]] bool hasSpeakToChat() const;
     [[nodiscard]] bool hasAdaptiveVolume() const;
 
+    bool showBleControlSetting() const;
+    bool bleControlEnabled() const { return _bleControlEnabled; }
+    Q_INVOKABLE void setBleControlEnabled(bool enabled);
+
     [[nodiscard]] QVariantList pairedDevices() const;
 
     [[nodiscard]] bool autostart() const;
@@ -125,6 +131,7 @@ signals:
     void capabilitiesChanged();
     void pairedDevicesChanged();
     void autostartChanged();
+    void bleControlEnabledChanged();
     void languageChanged();
 
 private:
@@ -134,6 +141,7 @@ private:
     DeviceBackend* _backend{nullptr};
     quint64 _generation{0};
     bool _busy{true};
+    bool _bleControlEnabled{false};
     QString _lastError, _connectionState{"searching"}, _codec{"Unknown"};
     QVariantMap _features;
     QJsonObject _capabilities;
